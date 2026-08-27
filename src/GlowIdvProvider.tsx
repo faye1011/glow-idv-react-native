@@ -49,13 +49,45 @@ export function GlowIdvProvider({
   const [pending, setPending] = useState<PresentVerificationOptions | undefined>();
   // Held so the modal's outcome can settle the promise handed to the caller.
   const resolver = useRef<((result: VerificationResult) => void) | undefined>();
+  /**
+   * A credential captured on success, held until the consumer leaves.
+   *
+   * The SDK reports success and then shows its own confirmation screen —
+   * including `customisedMessage` — before emitting an exit. Closing the sheet
+   * as soon as the credential arrives destroys that screen before it renders,
+   * so the result is kept here and the sheet stays up until the consumer is
+   * actually done with it.
+   */
+  const captured = useRef<VerificationResult | undefined>();
 
   const settle = useCallback((result: VerificationResult) => {
     setPending(undefined);
+    captured.current = undefined;
     const resolve = resolver.current;
     resolver.current = undefined;
     resolve?.(result);
   }, []);
+
+  /** A result from the embedded view. Success waits; failure closes at once. */
+  const handleResult = useCallback(
+    (result: VerificationResult) => {
+      if (result.status === 'verified') {
+        captured.current = result;
+        return;
+      }
+      settle(result);
+    },
+    [settle],
+  );
+
+  /**
+   * The consumer left the sheet — either through the SDK's own exit control or
+   * by dismissing it. A credential captured beforehand still counts: they
+   * verified successfully, whatever route they took out.
+   */
+  const close = useCallback(() => {
+    settle(captured.current ?? { status: 'cancelled' });
+  }, [settle]);
 
   const presentVerification = useCallback(
     (options: PresentVerificationOptions) => {
@@ -112,12 +144,12 @@ export function GlowIdvProvider({
         visible={!!pending}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => settle({ status: 'cancelled' })}>
+        onRequestClose={close}>
         <SafeAreaView style={styles.modal}>
           <View style={styles.header}>
             <Pressable
               accessibilityRole="button"
-              onPress={() => settle({ status: 'cancelled' })}
+              onPress={close}
               hitSlop={12}>
               <Text style={styles.close}>{closeLabel}</Text>
             </Pressable>
@@ -128,8 +160,8 @@ export function GlowIdvProvider({
                 subject={pending.subject}
                 allowedMethods={pending.allowedMethods}
                 customisedMessage={pending.customisedMessage}
-                onResult={settle}
-                onExit={() => settle({ status: 'cancelled' })}
+                onResult={handleResult}
+                onExit={close}
               />
             ) : null}
           </ScrollView>
