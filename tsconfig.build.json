@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "lib",
+    // CommonJS so the package works outside Metro too — a consumer's Jest, or
+    // any tooling that does not run the React Native bundler.
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "types": []
+  },
+  "include": ["src"]
+}

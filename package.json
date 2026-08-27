@@ -7,9 +7,10 @@
     "url": "git+https://github.com/faye1011/glow-idv-react-native.git"
   },
   "license": "UNLICENSED",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "files": [
+    "lib",
     "src",
     "jest",
     "README.md"
@@ -22,6 +23,8 @@
     "smart-meter"
   ],
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
     "tsc": "tsc --noEmit",
     "test": "jest"
   },
