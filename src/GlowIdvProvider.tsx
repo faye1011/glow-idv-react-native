@@ -50,43 +50,48 @@ export function GlowIdvProvider({
   // Held so the modal's outcome can settle the promise handed to the caller.
   const resolver = useRef<((result: VerificationResult) => void) | undefined>();
   /**
-   * A credential captured on success, held until the consumer leaves.
+   * The most recent failure, held rather than settled.
    *
-   * The SDK reports success and then shows its own confirmation screen —
-   * including `customisedMessage` — before emitting an exit. Closing the sheet
-   * as soon as the credential arrives destroys that screen before it renders,
-   * so the result is kept here and the sheet stays up until the consumer is
-   * actually done with it.
+   * A failed verification is recoverable — the SDK shows its own error and lets
+   * the consumer correct their details. Closing the sheet on failure would
+   * destroy that and force them to start again, so the flow stays open and the
+   * reason is kept here in case they give up and dismiss it.
    */
-  const captured = useRef<VerificationResult | undefined>();
+  const lastError = useRef<VerificationResult | undefined>();
 
   const settle = useCallback((result: VerificationResult) => {
     setPending(undefined);
-    captured.current = undefined;
+    lastError.current = undefined;
     const resolve = resolver.current;
     resolver.current = undefined;
     resolve?.(result);
   }, []);
 
-  /** A result from the embedded view. Success waits; failure closes at once. */
+  /**
+   * A result from the embedded view.
+   *
+   * Success closes the sheet immediately, handing the credential back so the
+   * host can show its own confirmation. Failure keeps it open for another
+   * attempt.
+   */
   const handleResult = useCallback(
     (result: VerificationResult) => {
       if (result.status === 'verified') {
-        captured.current = result;
+        settle(result);
         return;
       }
-      settle(result);
+      lastError.current = result;
     },
     [settle],
   );
 
   /**
-   * The consumer left the sheet — either through the SDK's own exit control or
-   * by dismissing it. A credential captured beforehand still counts: they
-   * verified successfully, whatever route they took out.
+   * The consumer left the sheet without a credential — dismissed it, or used
+   * the SDK's own exit control. Report the last failure if there was one, so
+   * the caller knows why they left rather than only that they did.
    */
   const close = useCallback(() => {
-    settle(captured.current ?? { status: 'cancelled' });
+    settle(lastError.current ?? { status: 'cancelled' });
   }, [settle]);
 
   const presentVerification = useCallback(
