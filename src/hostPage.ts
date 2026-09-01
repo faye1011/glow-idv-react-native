@@ -157,3 +157,89 @@ export function buildHostUrl(options: HostPageOptions): string {
   const base = config.hostUrl ?? '';
   return `${base}${base.includes('?') ? '&' : '?'}${query}`;
 }
+
+/**
+ * Script injected into a page served from the IDV origin, which sets up the
+ * SDK in place.
+ *
+ * Supplying the host page as an HTML string gives it no real origin, and newer
+ * iOS refuses to load the SDK's iframe from such a page — the flow initialises
+ * and then goes silent, with nothing to report. Loading a real URL on the IDV
+ * origin instead gives the page a genuine origin, same-origin with the iframe,
+ * which sidesteps that entirely and needs nothing hosted specially.
+ *
+ * The page's own content is replaced; only its origin is being borrowed.
+ */
+export function buildInjectedScript({
+  config,
+  subject,
+  allowedMethods,
+  customisedMessage,
+  theme,
+}: HostPageOptions): string {
+  const options = JSON.stringify({
+    publicGlowIdvClientKey: config.publicGlowIdvClientKey,
+    applicationId: config.applicationId,
+    subject,
+    allowedMethods,
+    iframeUrl: config.iframeUrl ?? DEFAULT_IFRAME_URL,
+    ...(customisedMessage ? { customisedMessage } : {}),
+    ...(theme ? { theme } : {}),
+  });
+
+  return `(function () {
+  function relay(payload) {
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+    }
+  }
+
+  // Deliberately no window.onerror here: the page whose origin we are
+  // borrowing runs its own scripts, and their failures are not ours to report.
+  // Loading and mounting are covered by script.onerror and the try/catch below.
+
+  window.addEventListener('message', function (event) {
+    if (event.origin !== window.location.origin) {
+      return;
+    }
+    var message = event.data;
+    if (!message || typeof message.type !== 'string') {
+      return;
+    }
+    relay(message);
+  });
+
+  var style = document.createElement('style');
+  style.textContent =
+    'html,body{margin:0;padding:0;background:transparent}' +
+    '#idv-container{width:100%}' +
+    // The SDK sets a height only once it reports a resize; without a floor the
+    // flow renders at no height and appears blank.
+    '#idv-container iframe{width:100%;min-height:600px;border:0;display:block}';
+  document.head.appendChild(style);
+
+  document.body.innerHTML = '<div id="idv-container"></div>';
+
+  var script = document.createElement('script');
+  script.src = '/glowidv.umd.cjs';
+  script.onload = function () {
+    if (!window.GlowIDV) {
+      relay({ type: 'HOST_ERROR', reason: 'Could not load the verification SDK.' });
+      return;
+    }
+    try {
+      new window.GlowIDV(${options}).mount('#idv-container');
+    } catch (error) {
+      relay({
+        type: 'HOST_ERROR',
+        reason: String((error && error.message) || error),
+      });
+    }
+  };
+  script.onerror = function () {
+    relay({ type: 'HOST_ERROR', reason: 'Could not load the verification SDK.' });
+  };
+  document.head.appendChild(script);
+})();
+true;`;
+}
