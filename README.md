@@ -82,7 +82,7 @@ The view sizes itself to the flow's content. Pass `autoHeight={false}` and a
 | Value | Method |
 | --- | --- |
 | `mpxn-eui-last4` | Meter point number plus the last four digits of the IHD identifier |
-| `energy-bill-upload` | Upload of a supporting document |
+| `document-upload` | Upload of a supporting document |
 
 Both are offered by default. To offer only one:
 
@@ -92,7 +92,7 @@ Both are offered by default. To offer only one:
 
 ### Permissions for document upload
 
-`energy-bill-upload` opens a camera or photo picker, which the host app must
+`document-upload` opens a camera or photo picker, which the host app must
 declare. **On iOS a missing usage string crashes the app** when the picker
 opens, so treat these as required.
 

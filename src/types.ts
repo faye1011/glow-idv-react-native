@@ -1,7 +1,7 @@
 /** Public types for the Glow IDV React Native SDK. */
 
 /** Verification methods the SDK can offer. */
-export type IdvMethod = 'mpxn-eui-last4' | 'energy-bill-upload';
+export type IdvMethod = 'mpxn-eui-last4' | 'document-upload';
 
 /** Stable error codes, so apps can branch on something other than prose. */
 export type GlowIdvErrorCode =

@@ -2,7 +2,7 @@ import type { GlowIdvConfig, IdvMethod, GlowIdvTheme } from './types';
 
 export const DEFAULT_ORIGIN = 'https://register.glownetzero.com';
 export const DEFAULT_IFRAME_URL = `${DEFAULT_ORIGIN}/iframe.html`;
-export const DEFAULT_METHODS: IdvMethod[] = ['mpxn-eui-last4', 'energy-bill-upload'];
+export const DEFAULT_METHODS: IdvMethod[] = ['mpxn-eui-last4', 'document-upload'];
 
 export interface HostPageOptions {
   config: GlowIdvConfig;

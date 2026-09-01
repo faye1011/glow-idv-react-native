@@ -59,7 +59,7 @@ describe('toVerificationResult', () => {
       data: {
         token: JWT,
         mpan: '1200000000000',
-        method: 'energy-bill-upload',
+        method: 'document-upload',
         verificationId: 'v1',
         timestamp: '2026-07-06T08:20:43.676Z',
       },
@@ -68,7 +68,7 @@ describe('toVerificationResult', () => {
       status: 'verified',
       token: JWT,
       mpan: '1200000000000',
-      method: 'energy-bill-upload',
+      method: 'document-upload',
       verificationId: 'v1',
       timestamp: '2026-07-06T08:20:43.676Z',
     });
