@@ -80,6 +80,9 @@ export function GlowIdvView({
    */
   useEffect(() => {
     let cancelled = false;
+    if (__DEV__) {
+      console.log('[GlowIDV] fetching sdk from', `${origin}/glowidv.umd.cjs`);
+    }
     fetch(`${origin}/glowidv.umd.cjs`)
       .then(response =>
         response.ok
@@ -87,11 +90,17 @@ export function GlowIdvView({
           : Promise.reject(new Error(`status ${response.status}`)),
       )
       .then(text => {
+        if (__DEV__) {
+          console.log('[GlowIDV] sdk fetched,', text.length, 'bytes');
+        }
         if (!cancelled) {
           setSdkSource(text);
         }
       })
-      .catch(() => {
+      .catch(e => {
+        if (__DEV__) {
+          console.log('[GlowIDV] sdk fetch FAILED', String(e));
+        }
         if (!cancelled) {
           reportRef.current?.({
             status: 'failed',
@@ -166,7 +175,13 @@ export function GlowIdvView({
     (event: WebViewMessageEvent) => {
       const message = parseMessage(event.nativeEvent.data);
       if (!message) {
+        if (__DEV__) {
+          console.log('[GlowIDV] unrecognised message', event.nativeEvent.data.slice(0, 200));
+        }
         return;
+      }
+      if (__DEV__) {
+        console.log('[GlowIDV] message', message.type);
       }
 
       switch (message.type) {
@@ -221,12 +236,6 @@ export function GlowIdvView({
       report({ status: 'failed', error: { code: 'NETWORK_ERROR', message } }),
     [report],
   );
-
-  // Rendering before the source arrives would fall back to a remote script
-  // tag, which does not execute inside an HTML string on iOS.
-  if (!config.hostUrl && !sdkSource) {
-    return <View style={[styles.wrapper, { height }, style]} />;
-  }
 
   return (
     <View style={[styles.wrapper, style]}>
