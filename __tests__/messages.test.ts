@@ -117,7 +117,15 @@ describe('toError', () => {
 });
 
 describe('extractHeight', () => {
-  it('reads a positive height', () => {
+  it('reads the shape the SDK actually sends', () => {
+    // Captured from the live SDK: nested under `data`, and fractional.
+    const message = parseMessage(
+      JSON.stringify({ type: 'GLOW_IDV_RESIZE', data: { height: 913.671875 } }),
+    )!;
+    expect(extractHeight(message)).toBe(913.671875);
+  });
+
+  it('reads a height at the root', () => {
     expect(extractHeight({ type: 'GLOW_IDV_RESIZE', height: 720 })).toBe(720);
   });
 
