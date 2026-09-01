@@ -49,7 +49,18 @@ export function buildHostPage({
     <style>
       html, body { margin: 0; padding: 0; background: transparent; }
       #idv-container { width: 100%; }
-      #idv-container iframe { width: 100%; border: 0; display: block; }
+      /*
+       * The SDK sets the iframe's height only on receiving a resize message,
+       * so without a floor it renders at no height and the flow appears blank.
+       * This keeps it visible until the real height arrives, after which the
+       * SDK's own inline style takes over.
+       */
+      #idv-container iframe {
+        width: 100%;
+        min-height: 600px;
+        border: 0;
+        display: block;
+      }
     </style>
   </head>
   <body>

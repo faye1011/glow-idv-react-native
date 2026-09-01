@@ -12,8 +12,13 @@ import {
 import { extractHeight, parseMessage, toError, toVerificationResult } from './messages';
 import type { GlowIdvError, IdvMethod, VerificationResult } from './types';
 
-/** Height before the SDK reports its own; enough to show the method chooser. */
-const INITIAL_HEIGHT = 520;
+/**
+ * Height before the SDK reports its own.
+ *
+ * Matches the floor the host page puts on the iframe, so the WebView never
+ * clips it while waiting for a resize message.
+ */
+const INITIAL_HEIGHT = 600;
 
 export interface GlowIdvViewProps {
   /** Identifier for this consumer — becomes their Glow Platform username. */
