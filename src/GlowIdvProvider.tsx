@@ -70,13 +70,24 @@ export function GlowIdvProvider({
   /**
    * A result from the embedded view.
    *
-   * Success closes the sheet immediately, handing the credential back so the
-   * host can show its own confirmation. Failure keeps it open for another
-   * attempt.
+   * Success closes the sheet, handing the credential back so the host can show
+   * its own confirmation.
+   *
+   * A rejected verification keeps it open: the SDK renders its own error and
+   * lets the consumer correct their details, and closing would force them to
+   * start again.
+   *
+   * Anything fatal closes it. If the SDK could not load or the service is
+   * unreachable there is nothing in the frame to retry, so staying open would
+   * leave the consumer looking at a blank sheet with the reason withheld.
    */
   const handleResult = useCallback(
     (result: VerificationResult) => {
       if (result.status === 'verified') {
+        settle(result);
+        return;
+      }
+      if (result.status === 'failed' && result.error.code !== 'VERIFICATION_FAILED') {
         settle(result);
         return;
       }
