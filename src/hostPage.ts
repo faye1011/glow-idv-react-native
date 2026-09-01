@@ -10,6 +10,20 @@ export interface HostPageOptions {
   allowedMethods: IdvMethod[];
   customisedMessage?: string;
   theme?: GlowIdvTheme;
+  /**
+   * The SDK's source, inlined into the page.
+   *
+   * WKWebView will not load a remote <script src> into a page supplied as an
+   * HTML string, whatever base URL it is given, so referencing the SDK by URL
+   * leaves the page inert with no error to report. Fetching it in React Native
+   * and inlining it here keeps the page self-contained. The iframe still loads
+   * from its own origin, which is a navigation rather than a subresource and
+   * is unaffected.
+   *
+   * Falls back to a script tag when absent, which is correct for a page served
+   * from a real origin.
+   */
+  sdkSource?: string;
 }
 
 /**
@@ -26,6 +40,7 @@ export function buildHostPage({
   allowedMethods,
   customisedMessage,
   theme,
+  sdkSource,
 }: HostPageOptions): string {
   const origin = config.origin ?? DEFAULT_ORIGIN;
 
@@ -45,7 +60,7 @@ export function buildHostPage({
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    <script src="${origin}/glowidv.umd.cjs"></script>
+    ${sdkSource ? `<script>${sdkSource}</script>` : `<script src="${origin}/glowidv.umd.cjs"></script>`}
     <style>
       html, body { margin: 0; padding: 0; background: transparent; }
       #idv-container { width: 100%; }

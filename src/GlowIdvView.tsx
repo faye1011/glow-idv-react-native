@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 
@@ -19,6 +19,9 @@ import type { GlowIdvError, IdvMethod, VerificationResult } from './types';
  * clips it while waiting for a resize message.
  */
 const INITIAL_HEIGHT = 600;
+
+/** How long to wait for the SDK to report itself ready before giving up. */
+const READY_TIMEOUT_MS = 15000;
 
 export interface GlowIdvViewProps {
   /** Identifier for this consumer — becomes their Glow Platform username. */
@@ -57,11 +60,74 @@ export function GlowIdvView({
 }: GlowIdvViewProps) {
   const config = useGlowIdvConfig();
   const [height, setHeight] = useState(INITIAL_HEIGHT);
+  const [sdkSource, setSdkSource] = useState<string>();
   // The SDK can emit a success more than once; only the first should count.
   const settled = useRef(false);
+  const ready = useRef(false);
+  /**
+   * The latest reporter, so the effects below can raise an error without
+   * taking it as a dependency and re-running the fetch on every render.
+   */
+  const reportRef = useRef<((result: VerificationResult) => void) | undefined>();
 
   const origin = config.origin ?? DEFAULT_ORIGIN;
   const methods = allowedMethods ?? config.allowedMethods ?? DEFAULT_METHODS;
+
+  /*
+   * Fetch the SDK so it can be inlined into the page. A remote script tag does
+   * not execute inside an HTML string on iOS, which leaves the page inert with
+   * nothing to report.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${origin}/glowidv.umd.cjs`)
+      .then(response =>
+        response.ok
+          ? response.text()
+          : Promise.reject(new Error(`status ${response.status}`)),
+      )
+      .then(text => {
+        if (!cancelled) {
+          setSdkSource(text);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          reportRef.current?.({
+            status: 'failed',
+            error: {
+              code: 'SDK_LOAD_FAILED',
+              message: 'Could not load the verification step. Check your connection.',
+            },
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [origin]);
+
+  /*
+   * A flow that never reports itself ready would otherwise sit blank
+   * indefinitely, which is far harder to diagnose than an error.
+   */
+  useEffect(() => {
+    if (!sdkSource) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (!ready.current) {
+        reportRef.current?.({
+          status: 'failed',
+          error: {
+            code: 'SDK_LOAD_FAILED',
+            message: 'The verification step did not load. Please try again.',
+          },
+        });
+      }
+    }, READY_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [sdkSource]);
 
   const source = useMemo(() => {
     const options = {
@@ -70,6 +136,7 @@ export function GlowIdvView({
       allowedMethods: methods,
       customisedMessage: customisedMessage ?? config.customisedMessage,
       theme: config.theme,
+      sdkSource,
     };
     if (config.hostUrl) {
       return { uri: buildHostUrl(options) };
@@ -80,7 +147,7 @@ export function GlowIdvView({
       // and any CORS behave as they would on a hosted page.
       baseUrl: origin,
     };
-  }, [config, customisedMessage, methods, origin, subject]);
+  }, [config, customisedMessage, methods, origin, sdkSource, subject]);
 
   const report = useCallback(
     (result: VerificationResult) => {
@@ -93,6 +160,7 @@ export function GlowIdvView({
     },
     [onError, onResult, onVerified],
   );
+  reportRef.current = report;
 
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
@@ -102,6 +170,10 @@ export function GlowIdvView({
       }
 
       switch (message.type) {
+        case 'GLOW_IDV_READY':
+          ready.current = true;
+          break;
+
         case 'GLOW_IDV_RESIZE': {
           const next = autoHeight ? extractHeight(message) : undefined;
           if (next) {
@@ -149,6 +221,12 @@ export function GlowIdvView({
       report({ status: 'failed', error: { code: 'NETWORK_ERROR', message } }),
     [report],
   );
+
+  // Rendering before the source arrives would fall back to a remote script
+  // tag, which does not execute inside an HTML string on iOS.
+  if (!config.hostUrl && !sdkSource) {
+    return <View style={[styles.wrapper, { height }, style]} />;
+  }
 
   return (
     <View style={[styles.wrapper, style]}>
