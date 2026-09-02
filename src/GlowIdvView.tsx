@@ -6,8 +6,8 @@ import { useGlowIdvConfig } from './GlowIdvProvider';
 import {
   DEFAULT_METHODS,
   DEFAULT_ORIGIN,
+  buildHostPage,
   buildHostUrl,
-  buildInjectedScript,
 } from './hostPage';
 import { extractHeight, parseMessage, toError, toVerificationResult } from './messages';
 import type { GlowIdvError, IdvMethod, VerificationResult } from './types';
@@ -60,6 +60,7 @@ export function GlowIdvView({
 }: GlowIdvViewProps) {
   const config = useGlowIdvConfig();
   const [height, setHeight] = useState(INITIAL_HEIGHT);
+  const [sdkSource, setSdkSource] = useState<string>();
   // The SDK can emit a success more than once; only the first should count.
   const settled = useRef(false);
   const ready = useRef(false);
@@ -73,10 +74,47 @@ export function GlowIdvView({
   const methods = allowedMethods ?? config.allowedMethods ?? DEFAULT_METHODS;
 
   /*
+   * Fetch the SDK so it can be inlined into the page. A remote script tag does
+   * not execute inside an HTML string on iOS, which leaves the page inert with
+   * nothing to report.
+   */
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${origin}/glowidv.umd.cjs`)
+      .then(response =>
+        response.ok
+          ? response.text()
+          : Promise.reject(new Error(`status ${response.status}`)),
+      )
+      .then(text => {
+        if (!cancelled) {
+          setSdkSource(text);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          reportRef.current?.({
+            status: 'failed',
+            error: {
+              code: 'SDK_LOAD_FAILED',
+              message: 'Could not load the verification step. Check your connection.',
+            },
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [origin]);
+
+  /*
    * A flow that never reports itself ready would otherwise sit blank
    * indefinitely, which is far harder to diagnose than an error.
    */
   useEffect(() => {
+    if (!sdkSource) {
+      return;
+    }
     const timer = setTimeout(() => {
       if (!ready.current) {
         reportRef.current?.({
@@ -89,29 +127,27 @@ export function GlowIdvView({
       }
     }, READY_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, []);
+  }, [sdkSource]);
 
-  const options = useMemo(
-    () => ({
+  const source = useMemo(() => {
+    const options = {
       config,
       subject,
       allowedMethods: methods,
       customisedMessage: customisedMessage ?? config.customisedMessage,
       theme: config.theme,
-    }),
-    [config, customisedMessage, methods, subject],
-  );
-
-  const source = useMemo(
-    () => ({ uri: config.hostUrl ? buildHostUrl(options) : `${origin}/` }),
-    [config.hostUrl, options, origin],
-  );
-
-  // Only used when borrowing the origin; a hosted page sets itself up.
-  const injected = useMemo(
-    () => (config.hostUrl ? undefined : buildInjectedScript(options)),
-    [config.hostUrl, options],
-  );
+      sdkSource,
+    };
+    if (config.hostUrl) {
+      return { uri: buildHostUrl(options) };
+    }
+    return {
+      html: buildHostPage(options),
+      // Gives the inline page the IDV origin, so the SDK's own origin handling
+      // and any CORS behave as they would on a hosted page.
+      baseUrl: origin,
+    };
+  }, [config, customisedMessage, methods, origin, sdkSource, subject]);
 
   const report = useCallback(
     (result: VerificationResult) => {
@@ -190,7 +226,6 @@ export function GlowIdvView({
     <View style={[styles.wrapper, style]}>
       <WebView
         source={source}
-        injectedJavaScript={injected}
         style={[styles.webView, { height }]}
         onMessage={handleMessage}
         onError={handleNetworkError(
