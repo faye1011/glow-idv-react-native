@@ -130,13 +130,7 @@ export function GlowIdvView({
     (event: WebViewMessageEvent) => {
       const message = parseMessage(event.nativeEvent.data);
       if (!message) {
-        if (__DEV__) {
-          console.log('[GlowIDV] unrecognised message', event.nativeEvent.data.slice(0, 200));
-        }
         return;
-      }
-      if (__DEV__) {
-        console.log('[GlowIDV] message', message.type);
       }
 
       switch (message.type) {
