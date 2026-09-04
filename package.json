@@ -1,5 +1,5 @@
 {
-  "name": "@glow/idv-react-native",
+  "name": "@hildebrandtech/idv-react-native",
   "version": "0.2.1",
   "description": "Glow IDV identity and address verification for React Native apps",
   "repository": {

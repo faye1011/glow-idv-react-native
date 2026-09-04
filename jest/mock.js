@@ -2,12 +2,12 @@
  * Jest mock, so apps can test flows that involve verification without a
  * network or a WebView.
  *
- *   jest.mock('@glow/idv-react-native', () =>
- *     require('@glow/idv-react-native/jest/mock'));
+ *   jest.mock('@hildebrandtech/idv-react-native', () =>
+ *     require('@hildebrandtech/idv-react-native/jest/mock'));
  *
  * By default `presentVerification` resolves as verified. Override per test:
  *
- *   const { __setNextResult } = require('@glow/idv-react-native');
+ *   const { __setNextResult } = require('@hildebrandtech/idv-react-native');
  *   __setNextResult({ status: 'cancelled' });
  */
 

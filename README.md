@@ -1,4 +1,4 @@
-# @glow/idv-react-native
+# @hildebrandtech/idv-react-native
 
 Glow IDV identity and address verification for React Native apps.
 
@@ -9,7 +9,7 @@ access.
 ## Installation
 
 ```bash
-npm install @glow/idv-react-native react-native-webview
+npm install @hildebrandtech/idv-react-native react-native-webview
 cd ios && pod install
 ```
 
@@ -21,7 +21,7 @@ rebuild is required — a JavaScript reload will not pick it up.
 Wrap your app once with the credentials issued by Glow:
 
 ```tsx
-import { GlowIdvProvider } from '@glow/idv-react-native';
+import { GlowIdvProvider } from '@hildebrandtech/idv-react-native';
 
 export default function App() {
   return (
@@ -38,7 +38,7 @@ export default function App() {
 ## Presenting verification
 
 ```tsx
-import { useGlowIdv } from '@glow/idv-react-native';
+import { useGlowIdv } from '@hildebrandtech/idv-react-native';
 
 function ConnectMeter({ email }: { email: string }) {
   const { presentVerification } = useGlowIdv();
@@ -65,7 +65,7 @@ function ConnectMeter({ email }: { email: string }) {
 ## Embedding it in your own screen
 
 ```tsx
-import { GlowIdvView } from '@glow/idv-react-native';
+import { GlowIdvView } from '@hildebrandtech/idv-react-native';
 
 <GlowIdvView
   subject={email}
@@ -132,14 +132,14 @@ Offering only `mpxn-eui-last4` avoids this entirely.
 A Jest mock is included, so tests never touch the network or a WebView:
 
 ```js
-jest.mock('@glow/idv-react-native', () =>
-  require('@glow/idv-react-native/jest/mock'));
+jest.mock('@hildebrandtech/idv-react-native', () =>
+  require('@hildebrandtech/idv-react-native/jest/mock'));
 ```
 
 It resolves as verified by default. To exercise other paths:
 
 ```js
-const { __setNextResult } = require('@glow/idv-react-native');
+const { __setNextResult } = require('@hildebrandtech/idv-react-native');
 __setNextResult({ status: 'cancelled' });
 ```
 
